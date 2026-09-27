@@ -1,0 +1,255 @@
+// Prisma Schema for Farmer AI Platform
+// Production-ready PostgreSQL schema with full indexing and relations
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  phone           String           @unique
+  name            String?
+  role            String           @default("FARMER")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  profile         FarmerProfile?
+  notifications   Notification[]
+  reminders       Reminder[]
+  chatSessions    ChatSession[]
+  diseaseAnalyses DiseaseAnalysis[]
+
+  @@index([phone])
+}
+
+model FarmerProfile {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farmerName      String
+  village         String
+  district        String
+  state           String        @default("Tamil Nadu")
+  landSizeAcres   Float?
+  irrigationType  String?       // Canal, Borewell, Drip, Rainfed, Sprinkler
+  preferredLang   String        @default("ta") // ta or en
+  locationConsent Boolean       @default(false)
+  latitude        Float?
+  longitude       Float?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  crops           FarmerCrop[]
+
+  @@index([district, state])
+}
+
+model FarmerCrop {
+  id          String        @id @default(cuid())
+  profileId   String
+  profile     FarmerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  cropName    String
+  variety     String?
+  season      String?       // Kuruvai, Samba, Navarai, Kharif, Rabi, Zaid
+  sowingDate  DateTime?
+  acreage     Float?
+  stage       String?       // Sowing, Vegetative, Flowering, Maturity, Harvest
+  createdAt   DateTime      @default(now())
+
+  @@index([profileId])
+  @@index([cropName])
+}
+
+model Market {
+  id          String        @id @default(cuid())
+  name        String
+  district    String
+  state       String        @default("Tamil Nadu")
+  distanceKm  Float         @default(10.0)
+  isVerified  Boolean       @default(true)
+  address     String?
+  contact     String?
+  prices      MarketPrice[]
+  createdAt   DateTime      @default(now())
+
+  @@index([district])
+}
+
+model MarketPrice {
+  id              String   @id @default(cuid())
+  marketId        String
+  market          Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  cropName        String
+  pricePerQuintal Float
+  unit            String   @default("Quintal") // Quintal or Kg
+  source          String   @default("AGMARKNET / Uzhavar Sandhai")
+  isLive          Boolean  @default(true)
+  status          String   @default("LIVE") // LIVE, ESTIMATED, DEMO, UNAVAILABLE
+  lastUpdated     DateTime @default(now())
+
+  @@index([cropName])
+  @@index([marketId])
+}
+
+model Machinery {
+  id             String             @id @default(cuid())
+  name           String
+  category       String             // Tractor, Harvester, Rotavator, Sprayer, etc.
+  providerName   String
+  providerPhone  String
+  district       String
+  state          String             @default("Tamil Nadu")
+  hourlyRate     Float?
+  dailyRate      Float?
+  isAvailable    Boolean            @default(true)
+  distanceKm     Float              @default(5.0)
+  imageUrl       String?
+  requests       MachineryRequest[]
+  createdAt      DateTime           @default(now())
+
+  @@index([category, district])
+}
+
+model MachineryRequest {
+  id             String    @id @default(cuid())
+  machineryId    String
+  machinery      Machinery @relation(fields: [machineryId], references: [id], onDelete: Cascade)
+  farmerName     String
+  farmerPhone    String
+  requestedDate  DateTime
+  durationHours  Int       @default(4)
+  status         String    @default("PENDING") // PENDING, CONFIRMED, REJECTED, COMPLETED
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  @@index([machineryId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  category    String   // RAIN, HEAT, IRRIGATION, DISEASE, CROP, MARKET, MACHINERY, SCHEME, SCHOLARSHIP, REMINDER
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  isRead      Boolean  @default(false)
+  actionUrl   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([category])
+}
+
+model Reminder {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  reminderDate DateTime
+  category     String    // SCHEME, SCHOLARSHIP, IRRIGATION, TASK, MARKET, MACHINERY
+  isCompleted  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, reminderDate])
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New Farm Conversation")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String      // user, assistant, system, tool
+  content   String
+  language  String      @default("ta") // ta, en, tanglish
+  toolCalls String?     // JSON metadata of tools called
+  sources   String?     // JSON metadata of sources / timestamps
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+}
+
+model DiseaseAnalysis {
+  id              String   @id @default(cuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cropName        String?
+  possibleDisease String
+  confidence      String   // HIGH, MEDIUM, LOW
+  symptoms        String
+  causes          String
+  nextSteps       String
+  prevention      String
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+}
+
+model GovernmentScheme {
+  id              String    @id @default(cuid())
+  name            String
+  nameTa          String?
+  description     String
+  descriptionTa   String?
+  eligibility     String
+  benefits        String
+  documents       String
+  startDate       DateTime?
+  deadline        DateTime?
+  officialSource  String
+  officialUrl     String
+  status          String    @default("VERIFIED") // VERIFIED, DEMO, UNAVAILABLE
+  createdAt       DateTime  @default(now())
+
+  @@index([deadline])
+}
+
+model Scholarship {
+  id              String    @id @default(cuid())
+  name            String
+  nameTa          String?
+  eligibility     String
+  educationLevel  String    // Diploma, Undergraduate, Postgraduate, Higher Secondary
+  benefits        String
+  deadline        DateTime?
+  documents       String
+  officialSource  String
+  officialUrl     String
+  status          String    @default("VERIFIED") // VERIFIED, DEMO, UNAVAILABLE
+  createdAt       DateTime  @default(now())
+
+  @@index([educationLevel])
+}
+
+model WeatherCache {
+  id              String   @id @default(cuid())
+  locationKey     String   @unique // e.g. "thanjavur_10.78_79.13"
+  latitude        Float
+  longitude       Float
+  currentTemp     Float
+  weatherCondition String
+  rainProbability Float
+  humidity        Float
+  windSpeed       Float
+  hourlyData      String   // JSON stringified hourly metrics
+  dailyData       String   // JSON stringified 7-day forecast
+  cachedAt        DateTime @default(now())
+
+  @@index([locationKey])
+}
