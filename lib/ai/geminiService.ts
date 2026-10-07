@@ -45,7 +45,7 @@ export async function askFarmerAI(query: string, context: AgentContext = {}): Pr
         `Grounding data available: ${JSON.stringify(agentResult.toolsCalled)}`;
 
       const response = await aiClient.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.0-flash",
         contents: query,
         config: {
           systemInstruction,
@@ -104,7 +104,7 @@ export async function analyzeCropDiseaseImage(
       const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, "");
 
       const response = await aiClient.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.0-flash",
         contents: [
           prompt,
           {

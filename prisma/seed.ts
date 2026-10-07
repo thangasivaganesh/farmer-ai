@@ -14,11 +14,11 @@ async function main() {
     update: {},
     create: {
       phone: "9876543210",
-      name: "Muthukumar S.",
+      name: "Thangasivaganesh P.",
       role: "FARMER",
       profile: {
         create: {
-          farmerName: "Muthukumar S.",
+          farmerName: "THANGASIVAGANESH P.",
           village: "Orathanadu",
           district: "Thanjavur",
           state: "Tamil Nadu",
